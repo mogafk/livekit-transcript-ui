@@ -1,0 +1,34 @@
+{
+  "name": "livekit-transcript-ui",
+  "private": true,
+  "type": "module",
+  "workspaces": [
+    "shared",
+    "server",
+    "ui"
+  ],
+  "scripts": {
+    "dev": "concurrently -n server,ui -c blue,green \"npm run dev -w server\" \"npm run dev -w ui\"",
+    "build": "npm run build -w ui",
+    "start": "npm run start -w server",
+    "test": "npm test --workspaces --if-present",
+    "typecheck": "npm run typecheck --workspaces --if-present && tsc -p scripts",
+    "lint": "eslint . && prettier --check .",
+    "format": "prettier --write .",
+    "replay": "tsx scripts/replay.ts"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@types/node": "^24.19.2",
+    "concurrently": "^10.0.6",
+    "eslint": "^10.14.0",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-vue": "^10.12.0",
+    "globals": "^17.13.0",
+    "prettier": "^3.9.10",
+    "tsx": "^4.23.15",
+    "typescript": "^6.0.3",
+    "typescript-eslint": "^8.72.1",
+    "vitest": "^5.0.5"
+  }
+}
