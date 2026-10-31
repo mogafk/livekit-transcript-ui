@@ -1,11 +1,33 @@
 <script setup lang="ts">
-import { onMounted, onUnmounted } from 'vue'
+import { onMounted, onUnmounted, ref } from 'vue'
+import { useRouter } from 'vue-router'
 import ConnectionBanner from '../components/ConnectionBanner.vue'
 import StatusBadge from '../components/StatusBadge.vue'
+import { parseExport } from '../export-file'
 import { formatDateTime, formatTime } from '../format'
 import { useSessionsStore } from '../stores/sessions'
+import { useTranscriptStore } from '../stores/transcript'
 
 const store = useSessionsStore()
+const transcript = useTranscriptStore()
+const router = useRouter()
+
+const fileInput = ref<HTMLInputElement>()
+const fileError = ref('')
+
+async function openFile(event: Event) {
+  const input = event.target as HTMLInputElement
+  const file = input.files?.[0]
+  input.value = '' // the same file can be chosen again
+  if (!file) return
+  try {
+    transcript.openFile(parseExport(await file.text()), file.name)
+    fileError.value = ''
+    await router.push('/file')
+  } catch (e) {
+    fileError.value = `${file.name}: ${(e as Error).message}`
+  }
+}
 
 onMounted(() => {
   document.title = 'Транскрипты'
@@ -17,7 +39,18 @@ onUnmounted(() => store.close())
 <template>
   <ConnectionBanner :state="store.connection" />
   <main class="page">
-    <h1>Сессии</h1>
+    <div class="heading">
+      <h1>Сессии</h1>
+      <button class="btn" type="button" @click="fileInput?.click()">Открыть JSON</button>
+      <input
+        ref="fileInput"
+        type="file"
+        accept=".json,application/json"
+        hidden
+        @change="openFile"
+      />
+    </div>
+    <p v-if="fileError" class="error" role="alert">{{ fileError }}</p>
     <p v-if="store.loaded && store.sorted.length === 0" class="empty">
       Сессий пока нет. Они появятся, когда транскрибатор пришлёт первые события.
     </p>
@@ -41,6 +74,19 @@ onUnmounted(() => store.close())
 </template>
 
 <style scoped>
+.heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+.heading h1 {
+  margin: 0;
+}
+.error {
+  color: var(--warn);
+}
 .list {
   list-style: none;
   margin: 0;

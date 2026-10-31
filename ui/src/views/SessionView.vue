@@ -1,13 +1,21 @@
 <script setup lang="ts">
 import { nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
+import { useRouter } from 'vue-router'
 import ConnectionBanner from '../components/ConnectionBanner.vue'
 import StatusBadge from '../components/StatusBadge.vue'
 import TranscriptLine from '../components/TranscriptLine.vue'
+import { downloadSession } from '../export-file'
 import { formatDateTime, speakerHue } from '../format'
 import { useTranscriptStore } from '../stores/transcript'
 
-const props = defineProps<{ id: string }>()
+/** `id` — a live session from the server; `fromFile` — the file already put into the store. */
+const props = defineProps<{ id?: string; fromFile?: boolean }>()
 const store = useTranscriptStore()
+const router = useRouter()
+
+function exportJson() {
+  if (store.detail) downloadSession(store.detail)
+}
 
 // Follow new lines while the user is at the bottom; scrolling up stops following.
 const STICK_PX = 48
@@ -35,7 +43,9 @@ watch(
   () => props.id,
   (id) => {
     following.value = true
-    store.open(id)
+    if (id) store.open(id)
+    // The file lives only in memory: after a reload there is nothing to show.
+    else if (props.fromFile && !store.file) router.replace('/')
   },
   { immediate: true },
 )
@@ -61,9 +71,18 @@ onUnmounted(() => {
       <header class="header">
         <div class="title">
           <h1 :title="store.session.name">{{ store.session.name }}</h1>
-          <StatusBadge :status="store.session.status" />
+          <span v-if="store.file" class="file-badge">из файла</span>
+          <StatusBadge v-else :status="store.session.status" />
+          <button v-if="!store.file" class="btn export" type="button" @click="exportJson">
+            Экспорт JSON
+          </button>
         </div>
-        <p class="meta">начало {{ formatDateTime(store.session.startedAt) }}</p>
+        <p class="meta">
+          начало {{ formatDateTime(store.session.startedAt) }}
+          <template v-if="store.file">
+            · {{ store.file.fileName }}, экспорт {{ formatDateTime(store.file.exportedAt) }}
+          </template>
+        </p>
         <ul class="speakers">
           <li
             v-for="s in store.speakerList"
@@ -125,6 +144,18 @@ onUnmounted(() => {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+.file-badge {
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 12px;
+  white-space: nowrap;
+  color: var(--accent);
+  background: var(--surface-2);
+}
+.export {
+  margin-left: auto;
+  flex-shrink: 0;
 }
 .meta {
   margin: 4px 0 8px;
