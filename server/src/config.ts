@@ -9,6 +9,7 @@ const schema = z.object({
   HOST: z.string().default('127.0.0.1'),
   PORT: z.coerce.number().int().positive().default(8787),
   SESSION_IDLE_TIMEOUT_S: z.coerce.number().positive().default(300),
+  SESSION_RETENTION_S: z.coerce.number().positive().default(1800),
 })
 
 export type Config = z.infer<typeof schema>

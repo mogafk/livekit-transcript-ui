@@ -9,6 +9,7 @@ const detail: SessionDetail = {
     startedAt: '2026-10-31T12:00:00.000Z',
     status: 'ended',
     lastEventAt: '2026-10-31T12:30:00.000Z',
+    expiresAt: '2026-10-31T13:00:00.000Z',
     speakerCount: 1,
     segmentCount: 1,
   },

@@ -5,7 +5,7 @@ import ConnectionBanner from '../components/ConnectionBanner.vue'
 import StatusBadge from '../components/StatusBadge.vue'
 import TranscriptLine from '../components/TranscriptLine.vue'
 import { downloadSession } from '../export-file'
-import { formatDateTime, speakerHue } from '../format'
+import { formatDateTime, formatTime, speakerHue } from '../format'
 import { useTranscriptStore } from '../stores/transcript'
 
 /** `id` — a live session from the server; `fromFile` — the file already put into the store. */
@@ -83,6 +83,14 @@ onUnmounted(() => {
             · {{ store.file.fileName }}, экспорт {{ formatDateTime(store.file.exportedAt) }}
           </template>
         </p>
+        <p v-if="store.removed" class="retention" role="status">
+          Сессия удалена из памяти сервера. Реплики остались только на этой странице — скачайте
+          JSON, пока не закрыли её.
+        </p>
+        <p v-else-if="!store.file && store.session.expiresAt" class="retention">
+          Сессия удалится с сервера в {{ formatTime(store.session.expiresAt) }} — чтобы сохранить,
+          скачайте JSON.
+        </p>
         <ul class="speakers">
           <li
             v-for="s in store.speakerList"
@@ -156,6 +164,14 @@ onUnmounted(() => {
 .export {
   margin-left: auto;
   flex-shrink: 0;
+}
+.retention {
+  margin: 0 0 8px;
+  padding: 6px 10px;
+  border-radius: 6px;
+  font-size: 13px;
+  color: var(--warn);
+  background: var(--warn-bg);
 }
 .meta {
   margin: 4px 0 8px;

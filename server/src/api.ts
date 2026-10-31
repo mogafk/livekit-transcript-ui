@@ -1,4 +1,5 @@
 // REST and SSE for the UI.
+import type { SessionStreamMessage } from '@transcript-ui/shared'
 import type { FastifyInstance, FastifyReply } from 'fastify'
 import type { SessionStore } from './store.ts'
 
@@ -20,14 +21,22 @@ export function registerApi(app: FastifyInstance, store: SessionStore): void {
     if (!store.get(request.params.id)) {
       return reply.code(404).send({ error: 'no such session' })
     }
-    openStream(reply, (send) => store.subscribeSession(request.params.id, send) ?? (() => {}))
+    openStream<SessionStreamMessage>(
+      reply,
+      (send) => store.subscribeSession(request.params.id, send) ?? (() => {}),
+      (message) => message.type === 'session_removed',
+    )
   })
 }
 
-/** Takes the response over from Fastify and writes SSE until the client goes away. */
-function openStream(
+/**
+ * Takes the response over from Fastify and writes SSE until the client goes away
+ * or a message for which isLast is true has been sent.
+ */
+function openStream<T>(
   reply: FastifyReply,
-  subscribe: (send: (message: unknown) => void) => () => void,
+  subscribe: (send: (message: T) => void) => () => void,
+  isLast: (message: T) => boolean = () => false,
 ): void {
   reply.hijack()
   const res = reply.raw
@@ -37,7 +46,10 @@ function openStream(
     Connection: 'keep-alive',
     'X-Accel-Buffering': 'no',
   })
-  const unsubscribe = subscribe((message) => res.write(`data: ${JSON.stringify(message)}\n\n`))
+  const unsubscribe = subscribe((message) => {
+    res.write(`data: ${JSON.stringify(message)}\n\n`)
+    if (isLast(message)) res.end()
+  })
   // Keeps proxies from closing an idle stream.
   const heartbeat = setInterval(() => res.write(': ping\n\n'), HEARTBEAT_MS)
   res.on('close', () => {

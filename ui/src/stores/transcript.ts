@@ -23,6 +23,8 @@ export const useTranscriptStore = defineStore('transcript', () => {
   const segments = ref(new Map<string, Segment>())
   const connection = ref<ConnectionState>('connecting')
   const file = ref<FileSource>()
+  /** The server removed the session (retention): the page keeps what it showed. */
+  const removed = ref(false)
   let unsubscribe: (() => void) | undefined
 
   /** By start; ties — by id, as on the server. */
@@ -64,12 +66,17 @@ export const useTranscriptStore = defineStore('transcript', () => {
       case 'segment_removed':
         segments.value.delete(message.id)
         return
+      case 'session_removed':
+        close() // otherwise EventSource would reconnect into a 404
+        removed.value = true
+        return
     }
   }
 
   function open(id: string) {
     close()
     file.value = undefined
+    removed.value = false
     session.value = undefined
     speakers.value = new Map()
     segments.value = new Map()
@@ -81,6 +88,7 @@ export const useTranscriptStore = defineStore('transcript', () => {
   /** Shows an exported file. Kept only in memory: gone after a page reload. */
   function openFile(data: ExportFile, fileName: string) {
     close()
+    removed.value = false
     setDetail(data)
     file.value = { fileName, exportedAt: data.exportedAt }
     connection.value = 'open'
@@ -98,6 +106,7 @@ export const useTranscriptStore = defineStore('transcript', () => {
     detail,
     connection,
     file,
+    removed,
     open,
     openFile,
     close,

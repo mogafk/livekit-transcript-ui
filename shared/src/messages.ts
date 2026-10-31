@@ -11,6 +11,8 @@ export interface SessionSummary {
   status: SessionStatus
   /** When the server received the last batch of the session. */
   lastEventAt: string
+  /** When the server removes the session from memory; null while it is live. */
+  expiresAt: string | null
   speakerCount: number
   segmentCount: number
 }
@@ -45,9 +47,12 @@ export type SessionChange =
   | { type: 'segment'; segment: Segment }
   | { type: 'segment_removed'; id: string }
 
-/** SSE `/api/sessions/:id/events`. */
-export type SessionStreamMessage = { type: 'snapshot'; detail: SessionDetail } | SessionChange
+/** SSE `/api/sessions/:id/events`. `session_removed` is the last message: the stream ends. */
+export type SessionStreamMessage =
+  { type: 'snapshot'; detail: SessionDetail } | SessionChange | { type: 'session_removed' }
 
 /** SSE `/api/sessions/events`. */
 export type ListStreamMessage =
-  { type: 'snapshot'; sessions: SessionSummary[] } | { type: 'session'; session: SessionSummary }
+  | { type: 'snapshot'; sessions: SessionSummary[] }
+  | { type: 'session'; session: SessionSummary }
+  | { type: 'session_removed'; id: string }

@@ -34,19 +34,25 @@ export function createSession(info: Batch['session'], now: string): SessionState
   }
 }
 
-export function summarize(s: SessionState): SessionSummary {
+/** A finished (ended or idle) session is removed retentionMs after its last batch. */
+export function summarize(s: SessionState, retentionMs: number): SessionSummary {
   return {
     id: s.id,
     name: s.name,
     startedAt: s.startedAt,
     status: s.status,
     lastEventAt: s.lastEventAt,
+    expiresAt:
+      s.status === 'live' ? null : new Date(Date.parse(s.lastEventAt) + retentionMs).toISOString(),
     speakerCount: s.speakers.size,
     segmentCount: s.segments.size,
   }
 }
 
-/** Applies a batch. Always ends with a `session` change: lastEventAt and counters move. */
+/**
+ * Applies a batch; returns changes of speakers and segments. The session summary
+ * (lastEventAt, counters, status) changes with every batch — the caller sends it.
+ */
 export function applyBatch(s: SessionState, events: ProtocolEvent[], now: string): SessionChange[] {
   const changes: SessionChange[] = []
   s.lastEventAt = now
@@ -57,8 +63,6 @@ export function applyBatch(s: SessionState, events: ProtocolEvent[], now: string
     s.lastSeq = event.seq
     applyEvent(s, event, changes)
   }
-
-  changes.push({ type: 'session', session: summarize(s) })
   return changes
 }
 

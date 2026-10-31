@@ -29,7 +29,7 @@ describe('applyBatch', () => {
     applyBatch(s, events(segment(1, 'alice:1', 'Final', true)), NOW)
     const changes = applyBatch(s, events(segment(2, 'alice:1', 'Late interim', false)), NOW)
     expect(s.segments.get('alice:1')?.text).toBe('Final')
-    expect(changes.map((c) => c.type)).toEqual(['session'])
+    expect(changes).toEqual([])
   })
 
   it('skips duplicates by seq, gaps are fine', () => {

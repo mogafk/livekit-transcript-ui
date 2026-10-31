@@ -1,4 +1,5 @@
-// Sessions in memory only: they do not survive a restart, by design.
+// Sessions in memory only: they do not survive a restart, by design. A finished session
+// is removed after retention — to keep it, the user downloads it as JSON from the UI.
 import type {
   ListStreamMessage,
   SessionDetail,
@@ -10,14 +11,21 @@ import type { Batch } from './protocol.ts'
 
 type Listener<T> = (message: T) => void
 
+export interface StoreOptions {
+  /** A live session without batches for this long becomes idle. */
+  idleTimeoutMs: number
+  /** An ended or idle session is removed this long after its last batch. */
+  retentionMs: number
+}
+
 export class SessionStore {
   private readonly sessions = new Map<string, SessionState>()
   private readonly listListeners = new Set<Listener<ListStreamMessage>>()
   private readonly sessionListeners = new Map<string, Set<Listener<SessionStreamMessage>>>()
-  private readonly idleTimeoutMs: number
+  private readonly options: StoreOptions
 
-  constructor(idleTimeoutMs: number) {
-    this.idleTimeoutMs = idleTimeoutMs
+  constructor(options: StoreOptions) {
+    this.options = options
   }
 
   ingest(batch: Batch, now = new Date()): void {
@@ -28,32 +36,38 @@ export class SessionStore {
       this.sessions.set(session.id, session)
     }
     // The whole batch is applied first, then subscribers get its changes.
-    const changes = applyBatch(session, batch.events, at)
-    for (const change of changes) this.emitSession(session.id, change)
-    this.emitList({ type: 'session', session: summarize(session) })
+    for (const change of applyBatch(session, batch.events, at)) {
+      this.emitSession(session.id, change)
+    }
+    this.emitSummary(session)
   }
 
-  /** Marks live sessions without events for idleTimeoutMs as idle. Called by a timer. */
+  /**
+   * Called by a timer: live sessions without batches for idleTimeoutMs become idle,
+   * finished ones past their expiresAt are removed.
+   */
   sweep(now = new Date()): void {
     for (const session of this.sessions.values()) {
-      if (session.status !== 'live') continue
-      if (now.getTime() - Date.parse(session.lastEventAt) < this.idleTimeoutMs) continue
-      session.status = 'idle'
-      const summary = summarize(session)
-      this.emitSession(session.id, { type: 'session', session: summary })
-      this.emitList({ type: 'session', session: summary })
+      const silentMs = now.getTime() - Date.parse(session.lastEventAt)
+      if (session.status === 'live') {
+        if (silentMs < this.options.idleTimeoutMs) continue
+        session.status = 'idle'
+        this.emitSummary(session)
+      } else if (silentMs >= this.options.retentionMs) {
+        this.remove(session.id)
+      }
     }
   }
 
   list(): SessionSummary[] {
-    return [...this.sessions.values()].map(summarize)
+    return [...this.sessions.values()].map((s) => this.summarize(s))
   }
 
   get(id: string): SessionDetail | undefined {
     const s = this.sessions.get(id)
     if (!s) return undefined
     return {
-      session: summarize(s),
+      session: this.summarize(s),
       speakers: [...s.speakers.values()],
       segments: sortSegments(s.segments.values()),
     }
@@ -81,6 +95,23 @@ export class SessionStore {
       listeners.delete(listener)
       if (listeners.size === 0) this.sessionListeners.delete(id)
     }
+  }
+
+  private remove(id: string): void {
+    this.sessions.delete(id)
+    this.emitSession(id, { type: 'session_removed' })
+    this.sessionListeners.delete(id)
+    this.emitList({ type: 'session_removed', id })
+  }
+
+  private summarize(s: SessionState): SessionSummary {
+    return summarize(s, this.options.retentionMs)
+  }
+
+  private emitSummary(s: SessionState): void {
+    const summary = this.summarize(s)
+    this.emitSession(s.id, { type: 'session', session: summary })
+    this.emitList({ type: 'session', session: summary })
   }
 
   private emitList(message: ListStreamMessage): void {

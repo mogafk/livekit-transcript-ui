@@ -66,6 +66,7 @@ onUnmounted(() => store.close())
             <span>последнее событие {{ formatTime(s.lastEventAt) }}</span>
             <span>спикеров {{ s.speakerCount }}</span>
             <span>реплик {{ s.segmentCount }}</span>
+            <span v-if="s.expiresAt" class="expires">удалится в {{ formatTime(s.expiresAt) }}</span>
           </div>
         </RouterLink>
       </li>
@@ -125,6 +126,9 @@ onUnmounted(() => store.close())
   margin-top: 6px;
   font-size: 13px;
   color: var(--text-muted);
+}
+.expires {
+  color: var(--warn);
 }
 .empty {
   color: var(--text-muted);

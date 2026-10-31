@@ -19,11 +19,17 @@ export const useSessionsStore = defineStore('sessions', () => {
   )
 
   function handle(message: ListStreamMessage) {
-    if (message.type === 'snapshot') {
-      sessions.value = new Map(message.sessions.map((s) => [s.id, s]))
-      loaded.value = true
-    } else {
-      sessions.value.set(message.session.id, message.session)
+    switch (message.type) {
+      case 'snapshot':
+        sessions.value = new Map(message.sessions.map((s) => [s.id, s]))
+        loaded.value = true
+        return
+      case 'session':
+        sessions.value.set(message.session.id, message.session)
+        return
+      case 'session_removed':
+        sessions.value.delete(message.id)
+        return
     }
   }
 
