@@ -28,5 +28,14 @@ npm run replay -- --speed 4   # то же, быстрее
 
 Без Vite: `npm run build && npm start` — UI на http://localhost:8787.
 
+## Docker
+
+```bash
+docker build -t livekit-transcript-ui .
+docker run --rm --env-file .env -p 127.0.0.1:8787:8787 livekit-transcript-ui
+```
+
+`-p 127.0.0.1:…` оставляет UI доступным только с этой машины.
+
 Сессии хранятся только в памяти и пропадают при перезапуске сервера.
 Подробности — [AGENTS.md](AGENTS.md).

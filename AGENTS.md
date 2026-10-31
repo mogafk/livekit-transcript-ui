@@ -43,7 +43,7 @@ LiveKit). Транскрибатор через свой sink `http` шлёт с
 - Хранение сессий между перезапусками (БД, файлы) — нет и не будет.
 - Редактирование транскриптов, экспорт — пока нет (экспорт `.txt` — план).
 - Авторизация в UI, многопользовательность — нет: записи не хранятся долго.
-- Деплой, Docker — пока нет, работаем локально.
+- Деплой — нет: есть только `Dockerfile` для запуска в контейнере.
 
 ## Ручка приёма — `POST /api/ingest`
 
@@ -143,7 +143,8 @@ LiveKit). Транскрибатор через свой sink `http` шлёт с
 - **Node.js 24**, **TypeScript** везде (strict, `noUncheckedIndexedAccess`), ES modules
 - **npm workspaces** — монорепо: `shared`, `server`, `ui`
 - **server:** **Fastify 5** (логи — встроенный pino, логи запросов выключены),
-  **@fastify/static**, **zod 4**; запуск через **tsx** без сборки
+  **@fastify/static**, **zod 4**; без сборки: `npm start` и Docker — `node src/index.ts` (Node 24 сам отбрасывает типы,
+  поэтому `erasableSyntaxOnly`: без enum, namespace и `constructor(private x)`), `dev` — `tsx watch`
 - **ui:** **Vue 3** (`<script setup lang="ts">`), **Vite**, **Pinia**, **vue-router**; **vue-tsc**
 - **shared:** только типы (`import type`), без кода и сборки
 - **Vitest** — тесты сервера (тестов UI пока нет); **ESLint** + **Prettier**
@@ -165,12 +166,12 @@ LiveKit). Транскрибатор через свой sink `http` шлёт с
 `.env` — в корне репозитория (его же читают Vite для порта прокси и `replay.ts`),
 в `.gitignore`; шаблон — `.env.example`.
 
-| Переменная               | Смысл                                                  | По умолчанию |
-| ------------------------ | ------------------------------------------------------ | ------------ |
-| `HTTP_SINK_TOKEN`        | токен транскрибатора, то же значение, что в его `.env` | обязательна  |
-| `HOST`                   | адрес                                                  | `127.0.0.1`  |
-| `PORT`                   | порт                                                   | `8787`       |
-| `SESSION_IDLE_TIMEOUT_S` | через сколько без пакетов сессия `idle`                | `300`        |
+| Переменная               | Смысл                                                               | По умолчанию |
+| ------------------------ | ------------------------------------------------------------------- | ------------ |
+| `HTTP_SINK_TOKEN`        | токен транскрибатора, то же значение, что в его `.env`              | обязательна  |
+| `HOST`                   | адрес; в Docker-образе — `0.0.0.0`, в `.env` для Docker не задавать | `127.0.0.1`  |
+| `PORT`                   | порт                                                                | `8787`       |
+| `SESSION_IDLE_TIMEOUT_S` | через сколько без пакетов сессия `idle`                             | `300`        |
 
 Токен: `python -c "import secrets; print(secrets.token_urlsafe(32))"`.
 
@@ -186,6 +187,7 @@ livekit-transcript-ui/
 ├── package.json              # npm workspaces, общие скрипты
 ├── tsconfig.base.json        # общие настройки TS, пакеты наследуют
 ├── eslint.config.js
+├── Dockerfile                # сборка UI → образ: сервер на Node + ui/dist, HOST=0.0.0.0
 ├── .env.example
 ├── scripts/
 │   └── replay.ts             # фейковый транскрибатор

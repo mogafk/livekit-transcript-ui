@@ -14,8 +14,11 @@ export class SessionStore {
   private readonly sessions = new Map<string, SessionState>()
   private readonly listListeners = new Set<Listener<ListStreamMessage>>()
   private readonly sessionListeners = new Map<string, Set<Listener<SessionStreamMessage>>>()
+  private readonly idleTimeoutMs: number
 
-  constructor(private readonly idleTimeoutMs: number) {}
+  constructor(idleTimeoutMs: number) {
+    this.idleTimeoutMs = idleTimeoutMs
+  }
 
   ingest(batch: Batch, now = new Date()): void {
     const at = now.toISOString()
